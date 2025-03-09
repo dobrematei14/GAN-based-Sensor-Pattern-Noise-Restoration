@@ -6,15 +6,22 @@ import os
 import glob
 from SPN.SPN_extraction import extract_spn
 
-# Base directories (update if needed)
-ORIGINAL_DIR = 'Images/Original/'
-COMPRESSED_DIR = 'Images/Compressed/'
+# Path to the external SSD drive
+external_drive = "F:/"  # Same as in image_compression.py
+
+# Base directories (update to use external SSD)
+ORIGINAL_DIR = os.path.join(external_drive, 'Images/Original/')
+COMPRESSED_DIR = os.path.join(external_drive, 'Images/Compressed/')
+
+# SPN model path - assuming it's in your local project directory
 SPN_MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Code/spn_cnn_model.h5')
+
 # Load trained SPN extraction CNN model
 spn_cnn_model = tf.keras.models.load_model(
     SPN_MODEL_PATH,
     custom_objects={'mse': tf.keras.losses.MeanSquaredError()}
 )
+
 
 def load_dng(image_path):
     """ Load a DNG file and convert it to an RGB NumPy array """
@@ -72,7 +79,14 @@ def load_pair(compressed_path):
 
 def get_dataset(batch_size=8, shuffle_buffer=1000):
     """ Create a TensorFlow dataset for training """
+    # Check if external drive is available
+    if not os.path.exists(external_drive):
+        raise FileNotFoundError(f"External drive {external_drive} not found. Please connect the drive and try again.")
+
     compressed_files = glob.glob(os.path.join(COMPRESSED_DIR, '*/*/*.jpg'))  # camera/compression_level/filename.jpg
+
+    if not compressed_files:
+        print(f"Warning: No compressed files found at {COMPRESSED_DIR}. Check if images have been processed.")
 
     dataset = tf.data.Dataset.from_tensor_slices(compressed_files)
     dataset = dataset.map(lambda x: tf.py_function(load_pair, [x],
@@ -80,4 +94,3 @@ def get_dataset(batch_size=8, shuffle_buffer=1000):
                                                     tf.string]))
     dataset = dataset.shuffle(shuffle_buffer).batch(batch_size).prefetch(tf.data.experimental.AUTOTUNE)
     return dataset
-
