@@ -1,8 +1,8 @@
 import os
 import rawpy  # For reading .DNG files
 import numpy as np
-from SPN.SPN_extraction_methods import save_spn_as_image
-import cv2 
+from SPN.SPN_extraction_methods import save_spn_as_image, extract_compressed_images_spn
+import cv2
 
 
 def process_dng_images_in_folders(root_path):
@@ -71,8 +71,12 @@ def process_dng_images_in_folders(root_path):
 
 
 
-
 if __name__ == "__main__":
     # Example usage
-    root_path = 'F:\Images\SPN'  # Replace with the path to your root directory
+    root_path = 'F:\Images\SPN'
     process_dng_images_in_folders(root_path)
+
+    compressed_base_path = "F:\\Images\\Compressed"
+    output_base_path = "F:\\Images\\SPN"
+
+    extract_compressed_images_spn(compressed_base_path, output_base_path)
