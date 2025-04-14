@@ -3,6 +3,16 @@ import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
 from PIL import Image
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Get paths from environment variables
+EXTERNAL_DRIVE = os.getenv('EXTERNAL_DRIVE')
+COMPRESSED_IMAGES_DIR = os.getenv('COMPRESSED_IMAGES_DIR')
+ORIGINAL_IMAGES_DIR = os.getenv('ORIGINAL_IMAGES_DIR')
+QUALITY_LEVELS = [int(q) for q in os.getenv('QUALITY_LEVELS').split(',')]
 
 def create_image_pairs(uncompressed_path, compressed_path):
     """Create pairs of compressed and uncompressed images with camera model info."""
@@ -16,7 +26,7 @@ def create_image_pairs(uncompressed_path, compressed_path):
             continue
 
         # For each compression level
-        for quality_level in [90, 60, 30]:
+        for quality_level in QUALITY_LEVELS:
             compressed_dir = os.path.join(compressed_path, camera_model, str(quality_level))
 
             # Skip if compressed directory doesn't exist
@@ -43,20 +53,23 @@ def create_image_pairs(uncompressed_path, compressed_path):
 
 
 # Used for one-hot encoding
-def count_cameras(base_path="F:\\Images\\Compressed\\"):
+def count_cameras(base_path=None):
     """
     Count the number of unique camera models in the dataset.
 
     Parameters:
     -----------
-    base_path : str
-        Base path to the compressed images directory
+    base_path : str, optional
+        Base path to the compressed images directory. If None, uses environment variable.
 
     Returns:
     --------
     int : The number of unique camera models
     list : List of camera model names
     """
+    if base_path is None:
+        base_path = os.path.join(EXTERNAL_DRIVE, COMPRESSED_IMAGES_DIR)
+
     if not os.path.exists(base_path):
         print(f"Path does not exist: {base_path}")
         return 0, []
@@ -77,28 +90,29 @@ class ImageReconstructionDataset(Dataset):
     PyTorch Dataset for compressed image reconstruction with camera model conditioning.
     """
 
-    def __init__(self, compressed_base_path, uncompressed_base_path, transform=None, target_size=(256, 256)):
+    def __init__(self, compressed_base_path=None, uncompressed_base_path=None, transform=None, target_size=(256, 256)):
         """
         Initialize the dataset.
 
         Parameters:
         -----------
-        compressed_base_path : str
-            Path to the compressed images directory
-        uncompressed_base_path : str
-            Path to the uncompressed images directory
-        transform : torchvision.transforms
+        compressed_base_path : str, optional
+            Path to the compressed images directory. If None, uses environment variable.
+        uncompressed_base_path : str, optional
+            Path to the uncompressed images directory. If None, uses environment variable.
+        transform : torchvision.transforms, optional
             Optional transforms to be applied on the images
         target_size : tuple
             Size to resize images to (height, width)
         """
-        self.compressed_base_path = compressed_base_path
-        self.uncompressed_base_path = uncompressed_base_path
+        # Use environment variables if paths are not provided
+        self.compressed_base_path = compressed_base_path or os.path.join(EXTERNAL_DRIVE, COMPRESSED_IMAGES_DIR)
+        self.uncompressed_base_path = uncompressed_base_path or os.path.join(EXTERNAL_DRIVE, ORIGINAL_IMAGES_DIR)
         self.transform = transform
         self.target_size = target_size
 
         # Get the list of camera models and create a mapping to indices
-        self.num_cameras, self.camera_models = count_cameras(compressed_base_path)
+        self.num_cameras, self.camera_models = count_cameras(self.compressed_base_path)
         self.camera_to_idx = {model: idx for idx, model in enumerate(self.camera_models)}
 
         # Default transform if none is provided
@@ -111,14 +125,13 @@ class ImageReconstructionDataset(Dataset):
 
         # Create a list of all image pairs
         self.image_pairs = []
-        # Assuming quality levels are the same for all cameras (as mentioned)
-        quality_levels = [q for q in os.listdir(os.path.join(compressed_base_path, self.camera_models[0]))
-                          if os.path.isdir(os.path.join(compressed_base_path, self.camera_models[0], q))]
+        # Use quality levels from environment variables
+        quality_levels = QUALITY_LEVELS
 
         for camera in self.camera_models:
             for quality in quality_levels:
-                compressed_folder = os.path.join(compressed_base_path, camera, quality)
-                uncompressed_folder = os.path.join(uncompressed_base_path, camera)
+                compressed_folder = os.path.join(self.compressed_base_path, camera, str(quality))
+                uncompressed_folder = os.path.join(self.uncompressed_base_path, camera)
 
                 if not os.path.exists(compressed_folder) or not os.path.exists(uncompressed_folder):
                     continue
@@ -143,7 +156,7 @@ class ImageReconstructionDataset(Dataset):
                                 'uncompressed_path': uncompressed_path,
                                 'camera_model': camera,
                                 'camera_idx': self.camera_to_idx[camera],
-                                'quality_level': int(quality) if quality.isdigit() else 0
+                                'quality_level': quality
                             })
 
     def __len__(self):

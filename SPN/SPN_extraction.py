@@ -3,16 +3,29 @@ import rawpy  # For reading .DNG files
 import numpy as np
 from SPN.SPN_extraction_methods import save_spn_as_image, extract_compressed_images_spn
 import cv2
+from dotenv import load_dotenv
 
+# Load environment variables
+load_dotenv()
 
-def process_dng_images_in_folders(root_path):
+# Get paths from environment variables
+EXTERNAL_DRIVE = os.getenv('EXTERNAL_DRIVE')
+SPN_IMAGES_DIR = os.getenv('SPN_IMAGES_DIR')
+COMPRESSED_IMAGES_DIR = os.getenv('COMPRESSED_IMAGES_DIR')
+
+def process_dng_images_in_folders(root_path=None):
     """
     Process all folders in the root path, extract SPN from the .DNG image in each folder,
     and save the SPN as a PNG image in a subfolder named 'SPN'.
 
     Args:
-        root_path (str): Path to the root directory containing camera model folders.
+        root_path (str, optional): Path to the root directory containing camera model folders.
+                                  If None, uses environment variable.
     """
+    # Use environment variable if root_path is not provided
+    if root_path is None:
+        root_path = os.path.join(EXTERNAL_DRIVE, SPN_IMAGES_DIR)
+
     # Iterate over all folders in the root path
     for folder_name in os.listdir(root_path):
         folder_path = os.path.join(root_path, folder_name)
@@ -70,13 +83,12 @@ def process_dng_images_in_folders(root_path):
                 print(f"Error processing {folder_name}: {e}")
 
 
-
 if __name__ == "__main__":
-    # Example usage
-    root_path = 'F:\Images\SPN'
+    # Use environment variables for paths
+    root_path = os.path.join(EXTERNAL_DRIVE, SPN_IMAGES_DIR)
     process_dng_images_in_folders(root_path)
 
-    compressed_base_path = "F:\\Images\\Compressed"
-    output_base_path = "F:\\Images\\SPN"
+    compressed_base_path = os.path.join(EXTERNAL_DRIVE, COMPRESSED_IMAGES_DIR)
+    output_base_path = os.path.join(EXTERNAL_DRIVE, SPN_IMAGES_DIR)
 
     extract_compressed_images_spn(compressed_base_path, output_base_path)

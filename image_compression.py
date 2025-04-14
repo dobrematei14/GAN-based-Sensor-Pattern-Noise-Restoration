@@ -2,14 +2,22 @@ import os
 import rawpy
 import imageio
 from PIL import Image
+from dotenv import load_dotenv
 
-# Path to the external SSD drive
-external_drive = "F:/"  # Windows path format with escaped backslash
+# Load environment variables from .env file
+load_dotenv()
 
-# Update paths to point to the external SSD
-path = os.path.join(external_drive, "Images/Original")
-path_compressed = os.path.join(external_drive, "Images/Compressed")
-quality_levels = [90, 60, 30]  # Different JPEG quality levels
+# Get paths from environment variables
+external_drive = os.getenv('EXTERNAL_DRIVE')
+original_dir = os.getenv('ORIGINAL_IMAGES_DIR')
+compressed_dir = os.getenv('COMPRESSED_IMAGES_DIR')
+
+# Construct full paths
+path = os.path.join(external_drive, original_dir)
+path_compressed = os.path.join(external_drive, compressed_dir)
+
+# Parse quality levels from environment variable
+quality_levels = [int(q) for q in os.getenv('QUALITY_LEVELS').split(',')]
 
 # Check if the external drive is connected
 if not os.path.exists(external_drive):
