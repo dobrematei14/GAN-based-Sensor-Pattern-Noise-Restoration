@@ -33,10 +33,12 @@ def train_discriminator(discriminator, generator, real_images, compressed_images
     discriminator.zero_grad()
 
     # Real images
-    real_labels = torch.ones(real_images.size(0)).cuda()
-    fake_labels = torch.zeros(compressed_images.size(0)).cuda()
+    batch_size = real_images.size(0)
+    real_labels = torch.ones(batch_size, 1).cuda()
+    fake_labels = torch.zeros(batch_size, 1).cuda()
 
     real_authenticity, real_camera_logits = discriminator(real_images)
+    real_authenticity = real_authenticity.view(batch_size, 1)
     real_authenticity_loss = bce_loss(real_authenticity, real_labels)
     real_camera_loss = ce_loss(real_camera_logits, camera_labels)
     real_loss = real_authenticity_loss + real_camera_loss
@@ -45,6 +47,7 @@ def train_discriminator(discriminator, generator, real_images, compressed_images
     # Fake images (from generator)
     fake_images = generator(compressed_images)
     fake_authenticity, _ = discriminator(fake_images.detach())
+    fake_authenticity = fake_authenticity.view(batch_size, 1)
     fake_authenticity_loss = bce_loss(fake_authenticity, fake_labels)
     fake_loss = fake_authenticity_loss
     fake_loss.backward()
@@ -68,12 +71,14 @@ def train_generator(generator, discriminator, compressed_images, camera_labels, 
     """
     generator.zero_grad()
 
+    batch_size = compressed_images.size(0)
     # Generate fake images
     fake_images = generator(compressed_images)
     fake_authenticity, fake_camera_logits = discriminator(fake_images)
 
     # Authenticity loss (want discriminator to predict 'real' for fake images)
-    real_labels = torch.ones(fake_authenticity.size(0)).cuda()
+    real_labels = torch.ones(batch_size, 1).cuda()
+    fake_authenticity = fake_authenticity.view(batch_size, 1)
     authenticity_loss = bce_loss(fake_authenticity, real_labels)
 
     # Camera classification loss
@@ -197,12 +202,12 @@ def train_cgan(config):
         print(f"Time taken: {epoch_time:.2f} seconds")
 
 if __name__ == "__main__":
-    # Default configuration
+    # Configuration for 2000 images/camera, 2 cameras (4000 total images)
     config = {
-        'batch_size': 16,
-        'num_epochs': 20,
-        'learning_rate': 0.0002,
-        'num_workers': 4
+        'batch_size': 32,        # Larger batch size for stable training with large dataset
+        'num_epochs': 100,       # More epochs for better convergence
+        'learning_rate': 0.0002, # Standard learning rate for GANs
+        'num_workers': 8         # Using 8 workers for i7-13700K (16 cores/24 threads)
     }
     
     train_cgan(config)
