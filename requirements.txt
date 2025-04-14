@@ -1,4 +1,17 @@
-rawpy>=0.17.0
-imageio>=2.31.1
+# Deep Learning Framework
+torch>=2.6.0
+torchvision>=0.21.0
+
+# Image Processing
 Pillow>=10.0.0
-python-dotenv>=1.0.0 
+opencv-python>=4.11.0
+numpy>=2.2.4
+
+# Signal Processing
+pywavelets>=1.8.0  # provides pywt for wavelet-based SPN extraction
+rawpy>=0.17.0      # for reading RAW images
+imageio>=2.31.1    # for image I/O operations
+
+# Environment and Utils
+python-dotenv>=1.0.0
+tqdm>=4.66.0       # for progress bars 

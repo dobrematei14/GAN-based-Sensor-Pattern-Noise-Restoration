@@ -1,7 +1,6 @@
 import pywt
 import numpy as np
 import cv2
-from scipy.signal import wiener
 import os
 
 
@@ -144,7 +143,7 @@ def extract_compressed_images_spn(compressed_base_path, output_base_path, wavele
     print("SPN extraction from compressed images completed successfully!")
 
 
-def extract_spn_wavelet(image, wavelet='db1', level=1):  # current preferred method
+def extract_spn_wavelet(image, wavelet='db1', level=1):
     """
     Extract SPN using wavelet decomposition.
 
@@ -171,56 +170,3 @@ def extract_spn_wavelet(image, wavelet='db1', level=1):  # current preferred met
     spn = (spn - np.mean(spn)) / np.std(spn)  # Normalize
 
     return spn
-
-
-def extract_spn_threshold(image, wavelet='db4', level=3, threshold=0.1):
-    # Convert to grayscale
-    if len(image.shape) == 3:
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    coeffs = pywt.wavedec2(image, wavelet, level=level)
-
-    # Threshold detail coefficients
-    thresholded_coeffs = [coeffs[0]] + [
-        tuple(pywt.threshold(c, threshold * np.max(c), mode='soft') for c in level_coeffs)
-        for level_coeffs in coeffs[1:]
-    ]
-
-    # Reconstruct denoised image
-    denoised = pywt.waverec2(thresholded_coeffs, wavelet)
-
-    # Residual = Original - Denoised (SPN estimate)
-    spn = image - denoised
-    spn = (spn - np.mean(spn)) / np.std(spn)
-
-    return spn
-
-
-def extract_spn_wiener_wavelet(image, wavelet='sym4'):
-    # Wiener filtering
-    denoised = wiener(image, mysize=(5, 5))
-
-    # Residual after Wiener filter
-    residual = image - denoised
-
-    # Further refine with wavelet decomposition
-    coeffs = pywt.wavedec2(residual, wavelet, level=1)
-    coeffs = [coeffs[0] * 0] + list(coeffs[1:])  # Remove low-frequency artifacts
-    spn = pywt.waverec2(coeffs, wavelet)
-
-    return spn
-
-
-def extract_spn_multiscale(image, wavelet='db2', levels=4):
-    spn_estimates = []
-    for level in range(1, levels + 1):
-        coeffs = pywt.wavedec2(image, wavelet, level=level)
-        coeffs = [coeffs[0] * 0] + list(coeffs[1:])
-        spn = pywt.waverec2(coeffs, wavelet)
-        spn_estimates.append(spn)
-
-    # Average across scales
-    spn_avg = np.mean(spn_estimates, axis=0)
-    spn_avg = (spn_avg - np.mean(spn_avg)) / np.std(spn_avg)
-
-    return spn_avg

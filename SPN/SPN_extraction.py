@@ -1,7 +1,7 @@
 import os
 import rawpy  # For reading .DNG files
 import numpy as np
-from SPN.SPN_extraction_methods import save_spn_as_image, extract_compressed_images_spn
+from SPN_extraction_methods import save_spn_as_image, extract_compressed_images_spn
 import cv2
 from dotenv import load_dotenv
 
