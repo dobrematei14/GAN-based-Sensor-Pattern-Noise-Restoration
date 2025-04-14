@@ -84,6 +84,40 @@ To get started:
 4. **Dataset Generation**: Create training pairs from compressed images and their SPN
 5. **Model Training**: Train the GAN model using the generated dataset
 
+## Current Implementation Status
+
+The current GAN implementation serves as a placeholder and basic framework for the project. It includes:
+
+- Basic generator and discriminator architectures
+- Simple training loop with basic loss functions
+- Environment variable-based configuration
+- Basic logging and progress tracking
+
+This implementation provides a foundation for the following planned improvements.
+
+## Planned Improvements
+
+Based on recent research in image restoration using GANs, particularly the Hourglass Block-GAN approach [1], several significant improvements are planned:
+
+1. **Hourglass Structure**: 
+   - Implementing a new hourglass architecture that preserves deep layer characteristics
+   - Better handling of high compression artifacts through improved skip connections
+   - Enhanced feature preservation in the encoder-decoder structure
+
+2. **Frequency-based Loss Functions**:
+   - Low Frequency (LF) loss for handling smooth regions
+   - High Frequency (HF) loss using pretrained VGG-16 for detailed features
+   - Combined loss functions to improve restoration of both fine details and overall structure
+
+3. **Blocking Artifact Removal**:
+   - Enhanced handling of JPEG compression artifacts
+   - Better preservation of image identity and quality at high compression rates
+   - Improved SPN pattern preservation during restoration
+
+These improvements will be particularly valuable for our SPN restoration task, as they address similar challenges in image quality restoration and artifact removal.
+
+[1] Si, J., & Kim, S. (2024). Restoration of the JPEG Maximum Lossy Compressed Face Images with Hourglass Block-GAN. Computers, Materials & Continua, 78(3), 2893-2908. https://doi.org/10.32604/cmc.2023.046081
+
 ## Requirements
 
 - Python 3.x
