@@ -132,16 +132,66 @@ The pipeline provides clear terminal output showing:
 - Any errors encountered
 - Success/failure status of each step
 
+## Machine Learning Dataset Structure
+
+The dataset is structured to facilitate SPN restoration using a GAN-based approach. Each sample in the dataset consists of:
+
+### Input Features:
+1. **Compressed Image** (3 channels, RGB)
+   - JPEG compressed image at specified quality level (30%, 60%, or 90%)
+   - Used to understand the compression artifacts and image content
+
+2. **Compressed Image SPN** (1 channel, grayscale)
+   - The SPN extracted from the compressed image
+   - Represents the current state of the SPN after compression
+
+3. **Quality Level** (scalar)
+   - The JPEG compression quality level (30, 60, or 90)
+   - Helps the model understand the degree of compression
+
+### Target:
+- **Camera SPN** (1 channel, grayscale)
+  - The averaged SPN from the camera's original DNG images
+  - This is the ideal SPN pattern we want to restore to
+
+### Dataset Organization:
+The dataset automatically pairs:
+- Compressed images from `Images/Compressed/Camera_Model/quality_level/`
+- Their corresponding SPNs from `Images/SPN/Camera_Model/compressed/quality_level/`
+- The target camera SPN from `Images/SPN/Camera_Model/original/camera_SPN.png`
+
+### Data Loading:
+The dataset is implemented as a PyTorch Dataset class (`SPNRestorationDataset`) that:
+- Automatically pairs compressed images with their SPNs and the camera's averaged SPN
+- Handles different camera models and quality levels
+- Returns properly formatted tensors for model training
+
+### Usage Example:
+```python
+dataset = SPNRestorationDataset()
+dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+
+for batch in dataloader:
+    inputs, targets = batch
+    # inputs is a dictionary containing:
+    #   - compressed_image: tensor of shape [batch_size, 3, height, width]
+    #   - compressed_spn: tensor of shape [batch_size, 1, height, width]
+    #   - quality_level: tensor of shape [batch_size]
+    # targets is a tensor of shape [batch_size, 1, height, width]
+    # containing the camera's averaged SPN
+```
+
 ## Current Implementation Status
 
-The current GAN implementation serves as a placeholder and basic framework for the project. It includes:
+The current GAN implementation needs to be completely redesigned to match the new dataset structure. The previous implementation was designed for a different input/output format and cannot be used with the new SPN restoration task.
 
-- Basic generator and discriminator architectures
-- Simple training loop with basic loss functions
-- Environment variable-based configuration
-- Basic logging and progress tracking
-
-This implementation provides a foundation for the following planned improvements.
+The new GAN implementation will need to:
+- Take as input:
+  - Compressed JPEG image (3 channels)
+  - Compressed image's SPN (1 channel)
+  - JPEG quality level
+- Output:
+  - Restored SPN (1 channel) that matches the camera's averaged SPN
 
 ## Planned Improvements
 
