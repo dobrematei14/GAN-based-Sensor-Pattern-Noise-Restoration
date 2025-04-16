@@ -40,8 +40,21 @@ EXTERNAL_DRIVE/
 │   │
 │   └── SPN/                # Sensor Pattern Noise files
 │       ├── Camera_Model_1/
-│       │   ├── SPN/        # SPN extraction results
-│       │   │   ├── spn1.png
+│       │   ├── original/
+│       │   │   └── camera_SPN.png    # Averaged SPN from all original images
+│       │   └── compressed/
+│       │       ├── 30/
+│       │       │   ├── image1_SPN.png
+│       │       │   ├── image2_SPN.png
+│       │       │   └── ...
+│       │       ├── 60/
+│       │       │   ├── image1_SPN.png
+│       │       │   ├── image2_SPN.png
+│       │       │   └── ...
+│       │       └── 90/
+│       │           ├── image1_SPN.png
+│       │           ├── image2_SPN.png
+│       │           └── ...
 │       ├── Camera_Model_2/
 │       │   └── ...         # Same structure as above
 │       └── ...
@@ -78,11 +91,46 @@ To get started:
 
 ## Processing Pipeline
 
-1. **Original Images**: Start with DNG files in the Original directory
-2. **Compression**: Generate compressed JPEG versions at different quality levels
-3. **SPN Extraction**: Extract Sensor Pattern Noise from both original and compressed images
-4. **Dataset Generation**: Create training pairs from compressed images and their SPN
-5. **Model Training**: Train the GAN model using the generated dataset
+The project implements a complete processing pipeline that can be run through the `pipeline.py` script. The pipeline consists of two main steps:
+
+### 1. Image Compression
+- Converts original DNG images to JPEG format
+- Creates multiple quality versions (90%, 60%, 30%)
+- Organizes compressed images by camera model and quality level
+- Skips already processed images to save time
+
+### 2. SPN Extraction
+- For original images:
+  - Extracts SPN from all DNG images of each camera model
+  - Averages the SPNs to create a single `camera_SPN.png` per camera
+  - Stores in `SPN/camera_model/original/`
+
+- For compressed images:
+  - Extracts individual SPN for each compressed image
+  - Stores in `SPN/camera_model/compressed/quality_level/`
+  - Names each SPN as `image_SPN.png`
+
+### Running the Pipeline
+
+To run the complete pipeline:
+```bash
+python pipeline.py
+```
+
+The pipeline will:
+1. Show progress for each step in the terminal
+2. Stop if any step fails
+3. Skip already processed images
+4. Create the required directory structure automatically
+
+### Pipeline Output
+
+The pipeline provides clear terminal output showing:
+- Progress of each step
+- Number of cameras processed
+- Number of images processed
+- Any errors encountered
+- Success/failure status of each step
 
 ## Current Implementation Status
 
