@@ -2,6 +2,7 @@ import pywt
 import numpy as np
 import cv2
 import os
+from skimage.restoration import denoise_wavelet
 
 
 def save_spn_as_image(image_path, output_path, wavelet='db1', level=1, camera_model=None, format='png'):
@@ -66,3 +67,43 @@ def extract_spn_wavelet(image, wavelet='db1', level=1):
     spn = (spn - np.mean(spn)) / np.std(spn)  # Normalize
 
     return spn
+
+
+def extract_spn_denoise_wavelet(image, wavelet='db8', is_color=False):
+    """
+    Extract SPN using scikit-image's denoise_wavelet function.
+    This method uses BayesShrink thresholding to separate noise from signal.
+
+    Args:
+        image (numpy.ndarray): Input image (grayscale or color).
+        wavelet (str): Wavelet type (e.g., 'db8', 'sym8').
+        is_color (bool): Whether the input image is color.
+
+    Returns:
+        numpy.ndarray: Extracted SPN, normalized to zero mean and unit variance.
+    """
+    # Convert to grayscale if needed
+    if len(image.shape) == 3 and not is_color:
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    
+    # Convert to float for proper noise extraction
+    image_float = image.astype(float)
+
+    # Apply wavelet denoising
+    denoised_image = denoise_wavelet(
+        image_float,
+        method='BayesShrink',
+        mode='soft',
+        wavelet=wavelet,
+        rescale_sigma=True,
+        channel_axis=-1 if is_color else None,
+        convert2ycbcr=True if is_color else False
+    )
+
+    # Calculate noise residual (SPN)
+    noise_residual = image_float - denoised_image
+
+    # Normalize the noise residual
+    noise_residual = (noise_residual - np.mean(noise_residual)) / np.std(noise_residual)
+
+    return noise_residual

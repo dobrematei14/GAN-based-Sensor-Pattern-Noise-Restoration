@@ -1,7 +1,9 @@
 import os
 from dotenv import load_dotenv
 from Dataset.image_compression import compress_images_with_progress
-from SPN.SPN_extraction import extract_all_spns
+# Choose one of the following imports:
+from SPN.SPN_extraction import extract_all_spns              # Original wavelet method
+# from SPN.SPN_extraction_denoise import extract_all_spns_denoise  # BayesShrink denoise wavelet method
 
 # Load environment variables
 load_dotenv()
@@ -47,7 +49,10 @@ def run_pipeline():
     
     print("\nStep 2: SPN Extraction")
     print("-" * 30)
-    spn_results = extract_all_spns()
+    
+    # Choose one of the following SPN extraction methods:
+    spn_results = extract_all_spns()                    # Original wavelet method
+    # spn_results = extract_all_spns_denoise()         # BayesShrink denoise wavelet method
     
     if spn_results['original_processing']['errors']:
         print("\nSPN Extraction Errors (Original):")
