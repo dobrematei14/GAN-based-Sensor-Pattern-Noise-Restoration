@@ -250,62 +250,63 @@ def compress_images_with_progress():
                     if os.path.isdir(os.path.join(original_base_path, d))]
     
     # Process each camera model
-    for camera_model in tqdm(camera_models, desc="Processing camera models", unit="camera"):
-        camera_dir = os.path.join(original_base_path, camera_model)
-        
-        # Get all RAW files
-        raw_files = [f for f in os.listdir(camera_dir)
-                    if f.lower().endswith(('.dng', '.rw2'))]
-        
-        if not raw_files:
-            continue
+    with tqdm(camera_models, desc="Processing camera models", unit="camera", position=0, leave=True) as pbar:
+        for camera_model in pbar:
+            camera_dir = os.path.join(original_base_path, camera_model)
             
-        # Pre-check which files need processing
-        files_to_process = []
-        for raw_file in raw_files:
-            needs_processing = False
-            for quality in QUALITY_LEVELS:
-                quality_dir = os.path.join(compressed_base_path, camera_model, str(quality))
-                output_path = os.path.join(quality_dir, f"{os.path.splitext(raw_file)[0]}.jpg")
-                if not os.path.exists(output_path):
-                    needs_processing = True
-                    break
-            if needs_processing:
-                files_to_process.append(raw_file)
-            else:
-                results['total_images_skipped'] += 1
-                results['total_images'] += 1
-        
-        if not files_to_process:
-            results['skipped_cameras'].append(camera_model)
-            continue
+            # Get all RAW files
+            raw_files = [f for f in os.listdir(camera_dir)
+                        if f.lower().endswith(('.dng', '.rw2'))]
             
-        # Prepare arguments for parallel processing
-        process_args = [(f, camera_model, original_base_path, compressed_base_path) 
-                       for f in files_to_process]
-        
-        # Create a process pool using all available cores
-        num_cores = multiprocessing.cpu_count()
-        with Pool(num_cores) as pool:
-            # Process images in parallel with progress bar
-            for result in tqdm(
-                pool.imap_unordered(process_single_image, process_args),
-                total=len(files_to_process),
-                desc=f"Processing {camera_model}",
-                unit="image",
-                leave=False
-            ):
-                if result['processed']:
-                    results['total_images_processed'] += 1
-                elif result['skipped']:
+            if not raw_files:
+                continue
+                
+            # Pre-check which files need processing
+            files_to_process = []
+            for raw_file in raw_files:
+                needs_processing = False
+                for quality in QUALITY_LEVELS:
+                    quality_dir = os.path.join(compressed_base_path, camera_model, str(quality))
+                    output_path = os.path.join(quality_dir, f"{os.path.splitext(raw_file)[0]}.jpg")
+                    if not os.path.exists(output_path):
+                        needs_processing = True
+                        break
+                if needs_processing:
+                    files_to_process.append(raw_file)
+                else:
                     results['total_images_skipped'] += 1
-                if result['error']:
-                    results['errors'].append(result['error'])
-                results['total_images'] += 1
-        
-        if results['total_images_processed'] > 0:
-            results['processed_cameras'].append(camera_model)
-        else:
-            results['skipped_cameras'].append(camera_model)
+                    results['total_images'] += 1
+            
+            if not files_to_process:
+                results['skipped_cameras'].append(camera_model)
+                continue
+                
+            # Prepare arguments for parallel processing
+            process_args = [(f, camera_model, original_base_path, compressed_base_path) 
+                           for f in files_to_process]
+            
+            # Create a process pool using all available cores
+            num_cores = multiprocessing.cpu_count()
+            with Pool(num_cores) as pool:
+                # Process images in parallel with progress bar
+                with tqdm(total=len(files_to_process), 
+                         desc=f"Processing {camera_model}", 
+                         unit="image",
+                         position=1, 
+                         leave=False) as inner_pbar:
+                    for result in pool.imap_unordered(process_single_image, process_args):
+                        if result['processed']:
+                            results['total_images_processed'] += 1
+                        elif result['skipped']:
+                            results['total_images_skipped'] += 1
+                        if result['error']:
+                            results['errors'].append(result['error'])
+                        results['total_images'] += 1
+                        inner_pbar.update(1)
+            
+            if results['total_images_processed'] > 0:
+                results['processed_cameras'].append(camera_model)
+            else:
+                results['skipped_cameras'].append(camera_model)
     
     return results

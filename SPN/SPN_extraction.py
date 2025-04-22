@@ -53,7 +53,7 @@ def process_raw_images_in_folders(root_path=None):
     camera_folders = [d for d in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, d))]
     
     # Process each camera model
-    with tqdm(total=len(camera_folders), desc="Processing camera models", unit="camera", position=0) as camera_pbar:
+    with tqdm(total=len(camera_folders), desc="Processing RAW images", unit="camera", position=0, leave=True) as pbar:
         for folder_name in camera_folders:
             folder_path = os.path.join(root_path, folder_name)
 
@@ -67,7 +67,7 @@ def process_raw_images_in_folders(root_path=None):
                 results['skipped_cameras'].append(folder_name)
                 raw_files = [f for f in os.listdir(folder_path) if f.lower().endswith(('.dng', '.rw2'))]
                 results['total_images_skipped'] += len(raw_files)
-                camera_pbar.update(1)
+                pbar.update(1)
                 continue
 
             # Find all RAW files in the folder
@@ -77,7 +77,7 @@ def process_raw_images_in_folders(root_path=None):
             if not raw_files:
                 warning = f"Warning: No RAW images found for {folder_name}. Skipping this camera."
                 results['warnings'].append(warning)
-                camera_pbar.update(1)
+                pbar.update(1)
                 continue
 
             # Randomly select one image
@@ -120,7 +120,7 @@ def process_raw_images_in_folders(root_path=None):
                 error_msg = f"Error processing {selected_file}: {e}"
                 results['errors'].append(error_msg)
             
-            camera_pbar.update(1)
+            pbar.update(1)
 
     return results
 
@@ -151,7 +151,7 @@ def process_compressed_images():
                     if os.path.isdir(os.path.join(compressed_base_path, d))]
 
     # Process each camera model
-    with tqdm(total=len(camera_models), desc="Processing camera models", unit="camera", position=0) as camera_pbar:
+    with tqdm(total=len(camera_models), desc="Processing compressed images", unit="camera", position=0, leave=True) as camera_pbar:
         for camera_model in camera_models:
             camera_dir = os.path.join(compressed_base_path, camera_model)
             
@@ -174,36 +174,40 @@ def process_compressed_images():
                     continue
 
                 # Process images sequentially
-                for image_file in tqdm(compressed_images, 
-                                     desc=f"Processing {camera_model} {quality_level}%", 
-                                     unit="image",
-                                     position=1,
-                                     leave=False):
-                    image_path = os.path.join(quality_dir, image_file)
-                    output_filename = f"{os.path.splitext(image_file)[0]}_SPN.png"
-                    output_path = os.path.join(output_dir, output_filename)
+                with tqdm(total=len(compressed_images), 
+                         desc=f"Processing {camera_model} {quality_level}%", 
+                         unit="image",
+                         position=1, 
+                         leave=False) as image_pbar:
+                    for image_file in compressed_images:
+                        image_path = os.path.join(quality_dir, image_file)
+                        output_filename = f"{os.path.splitext(image_file)[0]}_SPN.png"
+                        output_path = os.path.join(output_dir, output_filename)
 
-                    # Skip if the SPN already exists
-                    if os.path.exists(output_path):
-                        results['skipped_images'].append(image_path)
-                        continue
+                        # Skip if the SPN already exists
+                        if os.path.exists(output_path):
+                            results['skipped_images'].append(image_path)
+                            image_pbar.update(1)
+                            continue
 
-                    try:
-                        # Extract and save the SPN
-                        save_spn_as_image(
-                            image_path=image_path,
-                            output_path=output_dir,
-                            wavelet='db1',
-                            level=1,
-                            camera_model=os.path.splitext(image_file)[0],
-                            format='png'
-                        )
-                        results['processed_images'].append(image_path)
-                        results['total_images_processed'] += 1
+                        try:
+                            # Extract and save the SPN
+                            save_spn_as_image(
+                                image_path=image_path,
+                                output_path=output_dir,
+                                wavelet='db1',
+                                level=1,
+                                camera_model=os.path.splitext(image_file)[0],
+                                format='png'
+                            )
+                            results['processed_images'].append(image_path)
+                            results['total_images_processed'] += 1
 
-                    except Exception as e:
-                        error_msg = f"Error processing {image_path}: {e}"
-                        results['errors'].append(error_msg)
+                        except Exception as e:
+                            error_msg = f"Error processing {image_path}: {e}"
+                            results['errors'].append(error_msg)
+                        
+                        image_pbar.update(1)
             
             camera_pbar.update(1)
 
