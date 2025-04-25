@@ -12,131 +12,84 @@ from functools import partial
 load_dotenv()
 
 # Get paths from environment variables
-EXTERNAL_DRIVE = os.getenv('EXTERNAL_DRIVE')
-ORIGINAL_IMAGES_DIR = os.getenv('ORIGINAL_IMAGES_DIR')
-COMPRESSED_IMAGES_DIR = os.getenv('COMPRESSED_IMAGES_DIR')
+DRIVE = os.getenv('EXTERNAL_DRIVE')
+ORIG_DIR = os.getenv('ORIGINAL_IMAGES_DIR')
+COMP_DIR = os.getenv('COMPRESSED_IMAGES_DIR')
 
 # Parse quality levels from environment variable
-QUALITY_LEVELS = [int(q) for q in os.getenv('QUALITY_LEVELS').split(',')]
+QUALITIES = [int(q) for q in os.getenv('QUALITY_LEVELS').split(',')]
 
-def check_external_drive():
-    """
-    Check if the external drive is connected and accessible.
-    
-    Returns:
-        bool: True if drive is accessible, False otherwise
-    """
-    if not os.path.exists(EXTERNAL_DRIVE):
-        print(f"Error: External drive {EXTERNAL_DRIVE} not found. Please connect the drive and try again.")
+def check_drive():
+    """Checks if the external drive is connected and accessible."""
+    if not os.path.exists(DRIVE):
         return False
     return True
 
-def process_dng_image(input_path, output_base_dir, quality_levels):
-    """
-    Process a single DNG (Digital Negative) image and create compressed JPEG versions at different quality levels.
-    
-    Args:
-        input_path (str): Path to the input DNG file
-        output_base_dir (str): Base directory for compressed images
-        quality_levels (list): List of quality levels (1-100) to compress to
-        
-    Returns:
-        dict: Processing results containing:
-            - processed_qualities: List of quality levels successfully processed
-            - skipped_qualities: List of quality levels skipped (already exist)
-            - errors: List of any errors encountered during processing
-    """
+def process_dng(img_path, out_dir, qualities):
+    """Processes a DNG image and creates compressed JPEG versions at different quality levels."""
     results = {
-        'processed_qualities': [],
-        'skipped_qualities': [],
+        'processed': [],
+        'skipped': [],
         'errors': []
     }
     
-    filename = os.path.basename(input_path)
-    directory = os.path.basename(os.path.dirname(input_path))
+    filename = os.path.basename(img_path)
+    directory = os.path.basename(os.path.dirname(img_path))
     
-    # Create output directory for this camera model
-    output_dir = os.path.join(output_base_dir, directory)
-    os.makedirs(output_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, directory)
+    os.makedirs(out_path, exist_ok=True)
     
     try:
-        # Open the DNG file
-        with rawpy.imread(input_path) as raw:
-            # Convert to RGB
+        with rawpy.imread(img_path) as raw:
             rgb = raw.postprocess()
-            # Convert to PIL Image
             img = Image.fromarray(rgb)
             
-            # Process each quality level
-            for quality in quality_levels:
-                # Create quality subdirectory
-                quality_dir = os.path.join(output_dir, str(quality))
-                os.makedirs(quality_dir, exist_ok=True)
+            for q in qualities:
+                q_dir = os.path.join(out_path, str(q))
+                os.makedirs(q_dir, exist_ok=True)
                 
-                # Set output path
-                output_path = os.path.join(quality_dir, f"{os.path.splitext(filename)[0]}.jpg")
+                out_file = os.path.join(q_dir, f"{os.path.splitext(filename)[0]}.jpg")
                 
-                # Skip if file already exists
-                if os.path.exists(output_path):
-                    results['skipped_qualities'].append(quality)
+                if os.path.exists(out_file):
+                    results['skipped'].append(q)
                     continue
                 
-                # Save as JPEG with specified quality
-                img.save(output_path, 'JPEG', quality=quality)
-                results['processed_qualities'].append(quality)
+                img.save(out_file, 'JPEG', quality=q)
+                results['processed'].append(q)
                 
     except Exception as e:
-        results['errors'].append(f"Error processing {input_path}: {str(e)}")
+        results['errors'].append(f"Error processing {img_path}: {str(e)}")
     
     return results
 
-def process_rw2_image(input_path, output_base_dir, quality_levels):
-    """
-    Process a single RW2 (Panasonic RAW) image and create compressed JPEG versions at different quality levels.
-    
-    Args:
-        input_path (str): Path to the input RW2 file
-        output_base_dir (str): Base directory for compressed images
-        quality_levels (list): List of quality levels (1-100) to compress to
-        
-    Returns:
-        dict: Processing results containing:
-            - processed_qualities: List of quality levels successfully processed
-            - skipped_qualities: List of quality levels skipped (already exist)
-            - errors: List of any errors encountered during processing
-    """
+def process_rw2(img_path, out_dir, qualities):
+    """Processes a RW2 image and creates compressed JPEG versions at different quality levels."""
     results = {
-        'processed_qualities': [],
-        'skipped_qualities': [],
+        'processed': [],
+        'skipped': [],
         'errors': []
     }
     
-    filename = os.path.basename(input_path)
-    directory = os.path.basename(os.path.dirname(input_path))
+    filename = os.path.basename(img_path)
+    directory = os.path.basename(os.path.dirname(img_path))
     
     try:
-        # Convert RW2 to RGB using rawpy
-        with rawpy.imread(input_path) as raw:
+        with rawpy.imread(img_path) as raw:
             rgb = raw.postprocess()
 
-        # Create PIL Image for compression
-        image = Image.fromarray(rgb)
+        img = Image.fromarray(rgb)
 
-        # Compress at different quality levels
-        for quality in quality_levels:
-            # Create quality-specific directory
-            quality_dir = os.path.join(output_base_dir, directory, str(quality))
-            os.makedirs(quality_dir, exist_ok=True)
+        for q in qualities:
+            q_dir = os.path.join(out_dir, directory, str(q))
+            os.makedirs(q_dir, exist_ok=True)
 
-            # Save compressed image
-            output_path = os.path.join(quality_dir, filename[:-4] + ".jpg")
+            out_file = os.path.join(q_dir, filename[:-4] + ".jpg")
 
-            # Check if this specific quality version already exists
-            if not os.path.exists(output_path):
-                image.save(output_path, "JPEG", quality=quality)
-                results['processed_qualities'].append(quality)
+            if not os.path.exists(out_file):
+                img.save(out_file, "JPEG", quality=q)
+                results['processed'].append(q)
             else:
-                results['skipped_qualities'].append(quality)
+                results['skipped'].append(q)
                 
     except Exception as e:
         error_msg = f"Error processing {filename}: {e}"
@@ -144,65 +97,41 @@ def process_rw2_image(input_path, output_base_dir, quality_levels):
         
     return results
 
-def process_image(input_path, output_base_dir, quality_levels):
-    """
-    Process a single raw image file (DNG or RW2) and create compressed JPEG versions.
-    Routes to the appropriate processing function based on file type.
+def process_img(img_path, out_dir, qualities):
+    """Routes image processing to the appropriate function based on file type (DNG or RW2)."""
+    filename = os.path.basename(img_path)
+    ext = filename.lower().split('.')[-1]
     
-    Args:
-        input_path (str): Path to the input raw image file
-        output_base_dir (str): Base directory for compressed images
-        quality_levels (list): List of quality levels (1-100) to compress to
-        
-    Returns:
-        dict: Processing results containing:
-            - processed_qualities: List of quality levels successfully processed
-            - skipped_qualities: List of quality levels skipped (already exist)
-            - errors: List of any errors encountered during processing
-    """
-    filename = os.path.basename(input_path)
-    file_extension = filename.lower().split('.')[-1]
-    
-    if file_extension == 'dng':
-        return process_dng_image(input_path, output_base_dir, quality_levels)
-    elif file_extension == 'rw2':
-        return process_rw2_image(input_path, output_base_dir, quality_levels)
+    if ext == 'dng':
+        return process_dng(img_path, out_dir, qualities)
+    elif ext == 'rw2':
+        return process_rw2(img_path, out_dir, qualities)
     else:
         return {
-            'processed_qualities': [],
-            'skipped_qualities': [],
-            'errors': [f"Unsupported file type: {file_extension}"]
+            'processed': [],
+            'skipped': [],
+            'errors': [f"Unsupported file type: {ext}"]
         }
 
-def process_single_image(args):
-    """
-    Process a single image with its parameters.
-    This function is designed to be used with multiprocessing.
-    
-    Args:
-        args (tuple): (raw_file, camera_model, original_base_path, compressed_base_path)
-        
-    Returns:
-        dict: Processing results
-    """
-    raw_file, camera_model, original_base_path, compressed_base_path = args
-    raw_path = os.path.join(original_base_path, camera_model, raw_file)
+def process_single(args):
+    """Processes a single image with its parameters for parallel processing."""
+    img_file, cam, orig_path, comp_path = args
+    img_path = os.path.join(orig_path, cam, img_file)
     
     result = {
-        'filename': raw_file,
+        'filename': img_file,
         'processed': False,
         'skipped': False,
         'error': None
     }
     
     try:
-        # Process the image
-        compression_results = process_image(raw_path, compressed_base_path, QUALITY_LEVELS)
+        comp_results = process_img(img_path, comp_path, QUALITIES)
         
-        if compression_results['processed_qualities']:
+        if comp_results['processed']:
             result['processed'] = True
-        elif compression_results['errors']:
-            result['error'] = compression_results['errors'][0]
+        elif comp_results['errors']:
+            result['error'] = comp_results['errors'][0]
         else:
             result['skipped'] = True
             
@@ -211,102 +140,50 @@ def process_single_image(args):
     
     return result
 
-def compress_images_with_progress():
-    """
-    Compress all DNG and RW2 images in parallel using all available CPU cores.
-    Shows progress bars for camera models and individual image processing.
-    
-    Returns:
-        dict: Dictionary containing processing results and statistics:
-            - processed_cameras: List of successfully processed camera directories
-            - skipped_cameras: List of skipped camera directories
-            - errors: List of any errors encountered
-            - total_images_processed: Total count of newly processed images
-            - total_images_skipped: Total count of skipped images
-            - total_images: Total count of all images
-    """
-    # Check if external drive is accessible
-    if not check_external_drive():
+def compress_imgs():
+    """Compresses all DNG and RW2 images in parallel using all available CPU cores.
+    Returns processing statistics and results."""
+    if not check_drive():
         return {'error': 'External drive not found'}
 
     results = {
-        'processed_cameras': [],
-        'skipped_cameras': [],
+        'processed_cams': [],
+        'skipped_cams': [],
         'errors': [],
-        'total_images_processed': 0,
-        'total_images_skipped': 0,
-        'total_images': 0
+        'total_processed': 0,
+        'total_skipped': 0,
+        'total': 0
     }
     
-    # Get the base paths
-    original_base_path = os.path.join(EXTERNAL_DRIVE, ORIGINAL_IMAGES_DIR)
-    compressed_base_path = os.path.join(EXTERNAL_DRIVE, COMPRESSED_IMAGES_DIR)
+    orig_path = os.path.join(DRIVE, ORIG_DIR)
+    comp_path = os.path.join(DRIVE, COMP_DIR)
     
-    # Create compressed images directory if it doesn't exist
-    os.makedirs(compressed_base_path, exist_ok=True)
+    os.makedirs(comp_path, exist_ok=True)
     
-    # Get list of camera models
-    camera_models = [d for d in os.listdir(original_base_path)
-                    if os.path.isdir(os.path.join(original_base_path, d))]
+    cams = [d for d in os.listdir(orig_path)
+            if os.path.isdir(os.path.join(orig_path, d))]
     
-    # Process each camera model
-    with tqdm(camera_models, desc="Processing camera models", unit="camera", position=0, leave=True) as pbar:
-        for camera_model in pbar:
-            camera_dir = os.path.join(original_base_path, camera_model)
+    for cam in cams:
+        cam_path = os.path.join(orig_path, cam)
+        img_files = [f for f in os.listdir(cam_path) if f.lower().endswith(('.dng', '.rw2'))]
+        
+        if not img_files:
+            continue
             
-            # Get all RAW files
-            raw_files = [f for f in os.listdir(camera_dir)
-                        if f.lower().endswith(('.dng', '.rw2'))]
+        results['total'] += len(img_files)
+        
+        with Pool() as pool:
+            process_func = partial(process_single, 
+                                 cam=cam,
+                                 orig_path=orig_path,
+                                 comp_path=comp_path)
             
-            if not raw_files:
-                continue
-                
-            # Pre-check which files need processing
-            files_to_process = []
-            for raw_file in raw_files:
-                needs_processing = False
-                for quality in QUALITY_LEVELS:
-                    quality_dir = os.path.join(compressed_base_path, camera_model, str(quality))
-                    output_path = os.path.join(quality_dir, f"{os.path.splitext(raw_file)[0]}.jpg")
-                    if not os.path.exists(output_path):
-                        needs_processing = True
-                        break
-                if needs_processing:
-                    files_to_process.append(raw_file)
-                else:
-                    results['total_images_skipped'] += 1
-                    results['total_images'] += 1
-            
-            if not files_to_process:
-                results['skipped_cameras'].append(camera_model)
-                continue
-                
-            # Prepare arguments for parallel processing
-            process_args = [(f, camera_model, original_base_path, compressed_base_path) 
-                           for f in files_to_process]
-            
-            # Create a process pool using all available cores
-            num_cores = multiprocessing.cpu_count()
-            with Pool(num_cores) as pool:
-                # Process images in parallel with progress bar
-                with tqdm(total=len(files_to_process), 
-                         desc=f"Processing {camera_model}", 
-                         unit="image",
-                         position=1, 
-                         leave=False) as inner_pbar:
-                    for result in pool.imap_unordered(process_single_image, process_args):
-                        if result['processed']:
-                            results['total_images_processed'] += 1
-                        elif result['skipped']:
-                            results['total_images_skipped'] += 1
-                        if result['error']:
-                            results['errors'].append(result['error'])
-                        results['total_images'] += 1
-                        inner_pbar.update(1)
-            
-            if results['total_images_processed'] > 0:
-                results['processed_cameras'].append(camera_model)
-            else:
-                results['skipped_cameras'].append(camera_model)
+            for result in pool.imap(process_func, img_files):
+                if result['processed']:
+                    results['total_processed'] += 1
+                elif result['skipped']:
+                    results['total_skipped'] += 1
+                elif result['error']:
+                    results['errors'].append(result['error'])
     
     return results

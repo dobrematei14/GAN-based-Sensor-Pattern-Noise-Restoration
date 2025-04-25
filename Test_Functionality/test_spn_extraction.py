@@ -5,13 +5,50 @@ import matplotlib.pyplot as plt
 import sys
 from pathlib import Path
 import rawpy
+from dotenv import load_dotenv
 
 # Add the project root to the Python path
 project_root = str(Path(__file__).parent.parent)
 if project_root not in sys.path:
     sys.path.append(project_root)
 
-from SPN.SPN_extraction_methods import extract_spn_wavelet, extract_spn_denoise_wavelet
+from SPN.SPN_extraction_methods import extract_spn, extract_spn_denoise
+
+# Load environment variables
+load_dotenv()
+
+# Get paths from environment variables
+DRIVE = os.getenv('EXTERNAL_DRIVE')
+COMP_DIR = os.getenv('COMPRESSED_IMAGES_DIR')
+ORIG_DIR = os.getenv('ORIGINAL_IMAGES_DIR')
+SPN_DIR = os.getenv('SPN_IMAGES_DIR')
+
+def find_test_image():
+    """Find the first available image in the dataset directories."""
+    # Try compressed images first
+    comp_path = os.path.join(DRIVE, COMP_DIR)
+    if os.path.exists(comp_path):
+        for cam in os.listdir(comp_path):
+            cam_path = os.path.join(comp_path, cam)
+            if os.path.isdir(cam_path):
+                for q in os.listdir(cam_path):
+                    q_path = os.path.join(cam_path, q)
+                    if os.path.isdir(q_path):
+                        for img in os.listdir(q_path):
+                            if img.lower().endswith(('.jpg', '.jpeg', '.png')):
+                                return os.path.join(q_path, img)
+    
+    # Try original images if no compressed images found
+    orig_path = os.path.join(DRIVE, ORIG_DIR)
+    if os.path.exists(orig_path):
+        for cam in os.listdir(orig_path):
+            cam_path = os.path.join(orig_path, cam)
+            if os.path.isdir(cam_path):
+                for img in os.listdir(cam_path):
+                    if img.lower().endswith(('.dng', '.rw2')):
+                        return os.path.join(cam_path, img)
+    
+    return None
 
 def visualize_results(original, spn_wavelet, spn_denoise, title):
     """
@@ -167,35 +204,39 @@ def load_image(image_path):
             raise ValueError(f"Could not read image at {image_path}")
         return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-def test_spn_extraction(image_path):
-    """
-    Test both SPN extraction methods on a given image.
-    
-    Args:
-        image_path (str): Path to the test image
-    """
+def test_spn_extraction():
+    """Test both SPN extraction methods on a test image."""
     try:
+        # Find the first available image
+        test_image_path = find_test_image()
+        
+        if test_image_path is None:
+            print("✗ No test images found in dataset directories")
+            return False
+            
+        print(f"Using test image: {test_image_path}")
+            
         # Load and convert to grayscale
-        gray_image = load_image(image_path)
+        gray_image = load_image(test_image_path)
         
         # Extract SPN using both methods
-        spn_wavelet = extract_spn_wavelet(gray_image, wavelet='db1', level=1)
-        spn_denoise = extract_spn_denoise_wavelet(gray_image, wavelet='db8', is_color=False)
+        spn_wavelet = extract_spn(gray_image)
+        spn_denoise = extract_spn_denoise(gray_image)
         
         # Visualize results
         visualize_results(
             gray_image,
             spn_wavelet,
             spn_denoise,
-            f"SPN Extraction Results - {os.path.basename(image_path)}"
+            f"SPN Extraction Results - {os.path.basename(test_image_path)}"
         )
         
+        print("✓ SPN extraction test passed")
+        return True
+        
     except Exception as e:
-        print(f"Error processing image: {str(e)}")
+        print(f"✗ SPN extraction test failed - {str(e)}")
+        return False
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        test_image_path = sys.argv[1]
-    else:
-        test_image_path = "F:\\ip15pm\\IMG_1277.DNG"  # Your DNG image path
-    test_spn_extraction(test_image_path) 
+    test_spn_extraction() 

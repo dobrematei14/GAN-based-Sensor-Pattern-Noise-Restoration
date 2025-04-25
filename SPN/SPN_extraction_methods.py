@@ -5,93 +5,38 @@ import os
 from skimage.restoration import denoise_wavelet
 
 
-def save_spn_as_image(image_path, output_path, wavelet='db1', level=1, camera_model=None, format='png'):
-    """
-    Extract SPN from an image and save it as a PNG file.
-    Uses wavelet decomposition to extract the sensor pattern noise.
+def save_spn(img_path, out_path, wavelet='db1', level=1, cam=None, fmt='png'):
+    """Extract SPN from an image and save it as a PNG file."""
+    img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+    spn = extract_spn(img, wavelet, level)
+    spn_norm = cv2.normalize(spn, None, 0, 255, cv2.NORM_MINMAX)
+    spn_norm = np.uint8(spn_norm)
     
-    Args:
-        image_path (str): Path to the input image
-        output_path (str): Directory to save the SPN image
-        wavelet (str, optional): Wavelet type to use. Defaults to 'db1'.
-        level (int, optional): Wavelet decomposition level. Defaults to 1.
-        camera_model (str, optional): Camera model name. Defaults to None.
-        format (str, optional): Output image format. Defaults to 'png'.
-    """
-    # Read the image
-    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    
-    # Extract SPN
-    spn = extract_spn_wavelet(img, wavelet, level)
-    
-    # Normalize to 0-255 range
-    spn_normalized = cv2.normalize(spn, None, 0, 255, cv2.NORM_MINMAX)
-    spn_normalized = np.uint8(spn_normalized)
-    
-    # Generate output filename
-    if camera_model:
-        output_filename = f"{camera_model}_SPN.{format}"
-    else:
-        output_filename = f"{os.path.splitext(os.path.basename(image_path))[0]}_SPN.{format}"
-    
-    # Save the SPN
-    output_filepath = os.path.join(output_path, output_filename)
-    cv2.imwrite(output_filepath, spn_normalized)
+    out_name = f"{cam}_SPN.{fmt}" if cam else f"{os.path.splitext(os.path.basename(img_path))[0]}_SPN.{fmt}"
+    cv2.imwrite(os.path.join(out_path, out_name), spn_norm)
 
 
-def extract_spn_wavelet(image, wavelet='db1', level=1):
-    """
-    Extract SPN using wavelet decomposition.
-    Removes low-frequency content and normalizes the result.
+def extract_spn(img, wavelet='db1', level=1):
+    """Extract SPN using wavelet decomposition."""
+    if len(img.shape) == 3:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    Args:
-        image (numpy.ndarray): Input image (grayscale or color).
-        wavelet (str): Wavelet type (e.g., 'db1', 'haar').
-        level (int): Decomposition level.
-
-    Returns:
-        numpy.ndarray: Extracted SPN, normalized to zero mean and unit variance.
-    """
-    # Convert to grayscale if needed
-    if len(image.shape) == 3:
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    # Wavelet decomposition
-    coeffs = pywt.wavedec2(image, wavelet, level=level)
-
-    # Set approximation coefficients to zero
-    coeffs = [coeffs[0] * 0] + list(coeffs[1:])  # Remove low-frequency content
-
-    # Reconstruct residual (SPN estimate)
+    coeffs = pywt.wavedec2(img, wavelet, level=level)
+    coeffs = [coeffs[0] * 0] + list(coeffs[1:])
     spn = pywt.waverec2(coeffs, wavelet)
-    spn = (spn - np.mean(spn)) / np.std(spn)  # Normalize
+    spn = (spn - np.mean(spn)) / np.std(spn)
 
     return spn
 
 
-def extract_spn_denoise_wavelet(image, wavelet='db8', is_color=False):
-    """
-    Extract SPN using scikit-image's denoise_wavelet function.
-    This method uses BayesShrink thresholding to separate noise from signal.
-
-    Args:
-        image (numpy.ndarray): Input image (grayscale or color).
-        wavelet (str): Wavelet type (e.g., 'db8', 'sym8').
-        is_color (bool): Whether the input image is color.
-
-    Returns:
-        numpy.ndarray: Extracted SPN, normalized to zero mean and unit variance.
-    """
-    # Convert to grayscale if needed
-    if len(image.shape) == 3 and not is_color:
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+def extract_spn_denoise(img, wavelet='db8', is_color=False):
+    """Extract SPN using scikit-image's denoise_wavelet function."""
+    if len(img.shape) == 3 and not is_color:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     
-    # Convert to float for proper noise extraction
-    image_float = image.astype(float)
-
-    # Apply wavelet denoising
-    denoised_image = denoise_wavelet(
-        image_float,
+    img_float = img.astype(float)
+    denoised = denoise_wavelet(
+        img_float,
         method='BayesShrink',
         mode='soft',
         wavelet=wavelet,
@@ -100,10 +45,7 @@ def extract_spn_denoise_wavelet(image, wavelet='db8', is_color=False):
         convert2ycbcr=True if is_color else False
     )
 
-    # Calculate noise residual (SPN)
-    noise_residual = image_float - denoised_image
+    noise = img_float - denoised
+    noise = (noise - np.mean(noise)) / np.std(noise)
 
-    # Normalize the noise residual
-    noise_residual = (noise_residual - np.mean(noise_residual)) / np.std(noise_residual)
-
-    return noise_residual
+    return noise
