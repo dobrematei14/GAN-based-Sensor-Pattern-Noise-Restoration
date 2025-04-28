@@ -6,6 +6,7 @@ import cv2
 from dotenv import load_dotenv
 from tqdm import tqdm
 import random
+from .SPN_extraction_original import process_raw
 
 # Load environment variables
 load_dotenv()
@@ -15,73 +16,6 @@ DRIVE = os.getenv('EXTERNAL_DRIVE')
 SPN_DIR = os.getenv('SPN_IMAGES_DIR')
 COMP_DIR = os.getenv('COMPRESSED_IMAGES_DIR')
 ORIG_DIR = os.getenv('ORIGINAL_IMAGES_DIR')
-
-def process_raw(root_path=None):
-    """Process RAW images and extract SPNs."""
-    if root_path is None:
-        root_path = os.path.join(DRIVE, ORIG_DIR)
-
-    results = {
-        'processed': [],
-        'skipped': [],
-        'errors': [],
-        'warnings': [],
-        'total_processed': 0,
-        'total_skipped': 0,
-        'selected': {}
-    }
-
-    cams = [d for d in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, d))]
-    
-    with tqdm(total=len(cams), desc="Processing RAW images", unit="camera") as pbar:
-        for cam in cams:
-            cam_path = os.path.join(root_path, cam)
-            spn_dir = os.path.join(DRIVE, SPN_DIR, cam)
-            orig_dir = os.path.join(spn_dir, 'original')
-            spn_path = os.path.join(orig_dir, 'camera_SPN.png')
-            
-            if os.path.exists(spn_path):
-                results['skipped'].append(cam)
-                raw_files = [f for f in os.listdir(cam_path) if f.lower().endswith(('.dng', '.rw2'))]
-                results['total_skipped'] += len(raw_files)
-                pbar.update(1)
-                continue
-
-            raw_files = [f for f in os.listdir(cam_path) if f.lower().endswith(('.dng', '.rw2'))]
-            
-            if not raw_files:
-                results['warnings'].append(f"No RAW images found for {cam}")
-                pbar.update(1)
-                continue
-
-            selected = random.choice(raw_files)
-            os.makedirs(orig_dir, exist_ok=True)
-
-            try:
-                with rawpy.imread(os.path.join(cam_path, selected)) as raw:
-                    img = raw.raw_image
-                    if len(img.shape) == 3:
-                        img = np.mean(img, axis=2)
-
-                    img_norm = cv2.normalize(img, None, 0, 255, cv2.NORM_MINMAX)
-                    img_norm = np.uint8(img_norm)
-
-                    spn = extract_spn(img_norm)
-                    spn_norm = cv2.normalize(spn, None, 0, 255, cv2.NORM_MINMAX)
-                    spn_norm = np.uint8(spn_norm)
-
-                    cv2.imwrite(spn_path, spn_norm)
-                    
-                    results['processed'].append(cam)
-                    results['total_processed'] += 1
-                    results['selected'][cam] = selected
-
-            except Exception as e:
-                results['errors'].append(f"Error processing {selected}: {e}")
-            
-            pbar.update(1)
-
-    return results
 
 def process_compressed():
     """Process compressed images and extract SPNs."""

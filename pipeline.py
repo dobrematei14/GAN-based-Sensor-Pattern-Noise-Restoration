@@ -1,9 +1,9 @@
 import os
 from dotenv import load_dotenv
-from Dataset.image_compression import compress_images_with_progress
+from Dataset.image_compression import compress_imgs
 # Choose one of the following imports:
-from SPN.SPN_extraction import extract_all_spns              # Original wavelet method
-# from SPN.SPN_extraction_denoise import extract_all_spns_denoise  # BayesShrink denoise wavelet method
+from SPN.SPN_extraction import extract_all              # Original wavelet method
+# from SPN.SPN_extraction_denoise import extract_all  # BayesShrink denoise wavelet method
 
 # Load environment variables
 load_dotenv()
@@ -33,7 +33,7 @@ def run_pipeline():
     
     print("\nStep 1: Image Compression")
     print("-" * 30)
-    compression_results = compress_images_with_progress()
+    compression_results = compress_imgs()
     
     if compression_results['errors']:
         print("\nCompression Errors:")
@@ -41,31 +41,31 @@ def run_pipeline():
             print(f"- {error}")
     
     print(f"\nCompression Summary:")
-    print(f"- Total images: {compression_results['total_images']}")
-    print(f"- Newly processed: {compression_results['total_images_processed']}")
-    print(f"- Already processed: {compression_results['total_images_skipped']}")
-    print(f"- Cameras processed: {len(compression_results['processed_cameras'])}")
-    print(f"- Cameras skipped: {len(compression_results['skipped_cameras'])}")
+    print(f"- Total images: {compression_results['total']}")
+    print(f"- Newly processed: {compression_results['total_processed']}")
+    print(f"- Already processed: {compression_results['total_skipped']}")
+    print(f"- Cameras processed: {len(compression_results['processed_cams'])}")
+    print(f"- Cameras skipped: {len(compression_results['skipped_cams'])}")
     
     print("\nStep 2: SPN Extraction")
     print("-" * 30)
     
     # Choose one of the following SPN extraction methods:
-    spn_results = extract_all_spns()                    # Original wavelet method
-    # spn_results = extract_all_spns_denoise()         # BayesShrink denoise wavelet method
+    spn_results = extract_all()                    # Original wavelet method
+    # spn_results = extract_all()         # BayesShrink denoise wavelet method
     
-    if spn_results['original_processing']['errors']:
+    if spn_results['original']['errors']:
         print("\nSPN Extraction Errors (Original):")
-        for error in spn_results['original_processing']['errors']:
+        for error in spn_results['original']['errors']:
             print(f"- {error}")
     
-    if spn_results['compressed_processing']['errors']:
+    if spn_results['compressed']['errors']:
         print("\nSPN Extraction Errors (Compressed):")
-        for error in spn_results['compressed_processing']['errors']:
+        for error in spn_results['compressed']['errors']:
             print(f"- {error}")
     
     print(f"\nSPN Extraction Summary:")
-    print(f"- Total images processed: {spn_results['total_images_processed']}")
+    print(f"- Total images processed: {spn_results['total_processed']}")
 
 if __name__ == "__main__":
     run_pipeline() 
